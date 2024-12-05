@@ -2,7 +2,7 @@ import torch
 
 from torch import nn
 
-from .util import FiLM2d
+from .util import FiLM2d, SwiGLU2d
 
 
 class ConvNeXtFiLMBlock(nn.Module):
@@ -12,14 +12,8 @@ class ConvNeXtFiLMBlock(nn.Module):
             hidden_size = 4 * d_model
 
         self.dwconv = nn.Conv2d(d_model, d_model, kernel_size=7, padding=3, groups=d_model)
-
         self.norm = FiLM2d(d_model, d_t, eps=norm_eps)
-
-        self.ffn = nn.Sequential(
-            nn.Conv2d(d_model, hidden_size, kernel_size=1),
-            nn.GELU(),
-            nn.Conv2d(hidden_size, d_model, kernel_size=1)
-        )
+        self.ffn = SwiGLU2d(d_model, hidden_size)
 
     def forward(self, x, t):
         residual = x
