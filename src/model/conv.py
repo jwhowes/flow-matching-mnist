@@ -2,7 +2,25 @@ import torch
 
 from torch import nn
 
-from .util import FiLM2d, SwiGLU2d
+from .util import FiLM2d, SwiGLU2d, LayerNorm2d
+
+
+class ConvNeXtBlock(nn.Module):
+    def __init__(self, d_model, hidden_size=None, norm_eps=1e-8):
+        super(ConvNeXtBlock, self).__init__()
+        if hidden_size is None:
+            hidden_size = 4 * d_model
+
+        self.dwconv = nn.Conv2d(d_model, d_model, kernel_size=7, padding=3, groups=d_model)
+        self.norm = LayerNorm2d(d_model, eps=norm_eps)
+        self.ffn = SwiGLU2d(d_model, hidden_size)
+
+    def forward(self, x):
+        residual = x
+
+        x = self.dwconv(x)
+        x = self.norm(x)
+        return residual + self.ffn(x)
 
 
 class ConvNeXtFiLMBlock(nn.Module):
@@ -37,62 +55,57 @@ class ClassConditionalConvNeXtFiLMBlock(nn.Module):
 
 
 class ClassConditionalConvNeXtFiLMUnet(nn.Module):
-    def __init__(self, in_channels, num_classes, d_t, d_init=64, n_scales=3, blocks_per_scale=2):
+    def __init__(self, in_channels, num_classes, d_t, dims=None, depths=None):
         super(ClassConditionalConvNeXtFiLMUnet, self).__init__()
-        self.stem = nn.Conv2d(in_channels, d_init, kernel_size=7, padding=3)
+        if dims is None:
+            dims = [64, 128, 256]
+
+        if depths is None:
+            depths = [2, 2, 3]
+
+        self.stem = nn.Conv2d(in_channels, dims[0], kernel_size=7, padding=3)
 
         self.down_blocks = nn.ModuleList()
         self.down_samples = nn.ModuleList()
-        for scale in range(n_scales - 1):
+        for i in range(len(dims) - 1):
             blocks = nn.ModuleList()
-            blocks.append(ClassConditionalConvNeXtFiLMBlock(
-                d_init * (2 ** scale), d_t, num_classes
-            ))
-            for block in range(blocks_per_scale - 1):
-                blocks.append(ConvNeXtFiLMBlock(d_init * (2 ** scale), d_t))
+            blocks.append(ClassConditionalConvNeXtFiLMBlock(dims[i], d_t, num_classes))
+            for block in range(depths[i] - 1):
+                blocks.append(ConvNeXtFiLMBlock(dims[i], d_t))
 
             self.down_blocks.append(blocks)
             self.down_samples.append(
-                nn.Conv2d(d_init * (2 ** scale), 2 * d_init * (2 ** scale), kernel_size=2, stride=2)
+                nn.Conv2d(dims[i], dims[i + 1], kernel_size=2, stride=2)
             )
 
         self.mid_blocks = nn.ModuleList()
         self.mid_blocks.append(ClassConditionalConvNeXtFiLMBlock(
-            d_init * (2 ** (n_scales - 1)), d_t, num_classes
+            dims[-1], d_t, num_classes
         ))
-        for block in range(blocks_per_scale - 1):
-            self.mid_blocks.append(ConvNeXtFiLMBlock(
-                d_init * (2 ** (n_scales - 1)), d_t
-            ))
+        for block in range(depths[-1] - 1):
+            self.mid_blocks.append(ConvNeXtFiLMBlock(dims[-1], d_t))
 
         self.up_samples = nn.ModuleList()
         self.up_combines = nn.ModuleList()
         self.up_blocks = nn.ModuleList()
-        for scale in range(n_scales - 2, -1, -1):
+        for i in range(len(dims) - 2, -1, -1):
             self.up_samples.append(nn.ConvTranspose2d(
-                2 * d_init * (2 ** scale),
-                d_init * (2 ** scale),
-                kernel_size=2,
-                stride=2
+                dims[i + 1], dims[i], kernel_size=2, stride=2
             ))
             self.up_combines.append(nn.Conv2d(
-                2 * d_init * (2 ** scale),
-                d_init * (2 ** scale),
+                2 * dims[i], dims[i],
                 kernel_size=5,
                 padding=2
             ))
 
             blocks = nn.ModuleList()
-            blocks.append(ClassConditionalConvNeXtFiLMBlock(
-                d_init * (2 ** scale), d_t, num_classes
-            ))
-            for block in range(blocks_per_scale - 1):
-                blocks.append(ConvNeXtFiLMBlock(
-                    d_init * (2 ** scale), d_t
-                ))
+            blocks.append(ClassConditionalConvNeXtFiLMBlock(dims[i], d_t, num_classes))
+            for block in range(depths[i] - 1):
+                blocks.append(ConvNeXtFiLMBlock(dims[i], d_t))
+
             self.up_blocks.append(blocks)
 
-        self.head = nn.Conv2d(d_init, in_channels, kernel_size=7, padding=3)
+        self.head = nn.Conv2d(dims[0], in_channels, kernel_size=7, padding=3)
 
     def forward(self, x, t, label):
         x = self.stem(x)

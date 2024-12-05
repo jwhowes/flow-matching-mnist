@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from torch import nn
 from tqdm import tqdm
 from abc import ABC, abstractmethod
-from einops import rearrange
 
 from .conv import ClassConditionalConvNeXtFiLMUnet
 from .util import SinusoidalPosEmb
@@ -87,7 +86,7 @@ class FlowMatchModel(nn.Module, ABC):
 
 class UNetFlowMatchModel(FlowMatchModel):
     def __init__(
-            self, in_channels, num_classes, d_t=256, d_init=64, n_scales=3, blocks_per_scale=2,
+            self, in_channels, num_classes, d_t=256, dims=None, depths=None,
             sigma_min=1e-8, p_uncond=0.1
     ):
         super(UNetFlowMatchModel, self).__init__()
@@ -106,8 +105,7 @@ class UNetFlowMatchModel(FlowMatchModel):
         )
 
         self.unet = ClassConditionalConvNeXtFiLMUnet(
-            in_channels, num_classes + 1, d_t,
-            d_init=d_init, n_scales=n_scales, blocks_per_scale=blocks_per_scale
+            in_channels, num_classes + 1, d_t, dims, depths
         )
 
     def pred_flow(self, x, t, label):

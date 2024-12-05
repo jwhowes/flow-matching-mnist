@@ -52,3 +52,8 @@ class SwiGLU2d(nn.Module):
         return self.out(
             F.silu(self.gate_proj(x)) * self.hidden_proj(x)
         )
+
+
+class LayerNorm2d(nn.LayerNorm):
+    def forward(self, x):
+        return super().forward(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)

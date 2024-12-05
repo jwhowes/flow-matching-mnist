@@ -52,8 +52,7 @@ if __name__ == "__main__":
 
     model = UNetFlowMatchModel(
         in_channels=1,
-        num_classes=10,
-        d_init=64
+        num_classes=10
     )
 
     dataloader = DataLoader(
