@@ -1,16 +1,21 @@
 import torch
+import yaml
+import os
 
 from accelerate import Accelerator
 from torch.utils.data import DataLoader
 from transformers import get_cosine_schedule_with_warmup
+from argparse import ArgumentParser
+from typing import List, Optional
 
-from src.model import UNetFlowMatchModel, FlowMatchModel
+from src.model import load_from_args, FlowMatchModel
 from src.data import MNISTDataset
 
 
 def train(
         model: FlowMatchModel,
-        dataloader: DataLoader
+        dataloader: DataLoader,
+        exp_dir: str
 ) -> None:
     num_epochs = 5
 
@@ -43,17 +48,42 @@ def train(
 
         torch.save(
             accelerator.get_state_dict(model, unwrap=True),
-            f"checkpoints/checkpoint_{epoch + 1:02}.pt"
+            os.path.join(exp_dir, f"checkpoint_{epoch + 1:02}.pt")
         )
 
 
 if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("exp_name", type=str)
+    parser.add_argument("--p_uncond", type=float, default=0.1)
+
+    subparsers = parser.add_subparsers(required=True, dest="arch")
+
+    unet_parser = subparsers.add_parser("unet")
+    unet_parser.add_argument("--d_t", type=int, default=256)
+    unet_parser.add_argument("--dims", type=List[int], default=[64, 128, 256])
+    unet_parser.add_argument("--depths", type=List[int], default=[2, 2, 3])
+
+    vit_parser = subparsers.add_parser("vit")
+    vit_parser.add_argument("--patch_size", type=int, default=2)
+    vit_parser.add_argument("--max_rel_pos", type=int, default=64)
+    vit_parser.add_argument("--d_model", type=int, default=256)
+    vit_parser.add_argument("--d_patch", type=Optional[int], default=None)
+    vit_parser.add_argument("--n_layers", type=int, default=6)
+    vit_parser.add_argument("--n_heads", type=int, default=8)
+
+    args = parser.parse_args()
+
+    exp_dir = os.path.join("experiments/", args.exp_name)
+    if not os.path.isdir(exp_dir):
+        os.makedirs(exp_dir)
+
+    with open(os.path.join(exp_dir, "config.yaml"), "w+") as f:
+        yaml.dump(args.__dict__, f)
+
     dataset = MNISTDataset()
 
-    model = UNetFlowMatchModel(
-        in_channels=1,
-        num_classes=10
-    )
+    model = load_from_args(args)
 
     dataloader = DataLoader(
         dataset,
@@ -62,4 +92,4 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    train(model, dataloader)
+    train(model, dataloader, exp_dir)

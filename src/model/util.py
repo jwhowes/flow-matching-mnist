@@ -4,19 +4,37 @@ import torch.nn.functional as F
 from torch import nn
 
 
-class FiLM2d(nn.Module):
-    def __init__(self, d_model, d_t, *args, **kwargs):
-        super(FiLM2d, self).__init__()
+class LayerNorm2d(nn.LayerNorm):
+    def forward(self, x):
+        return super().forward(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+
+
+class FiLM(nn.Module):
+    def __init__(self, d_model, d_t, conv=True, *args, **kwargs):
+        super(FiLM, self).__init__()
         self.gamma = nn.Linear(d_t, d_model, bias=False)
         self.beta = nn.Linear(d_t, d_model, bias=False)
-        self.norm = nn.LayerNorm(d_model, *args, elementwise_affine=False, **kwargs)
+
+        self.conv = conv
+
+        if conv:
+            self.norm = LayerNorm2d(d_model, *args, elementwise_affine=False, **kwargs)
+        else:
+            self.norm = nn.LayerNorm(d_model, *args, elementwise_affine=False, **kwargs)
 
     def forward(self, x, t):
         B = x.shape[0]
-        g = self.gamma(t).view(B, -1, 1, 1)
-        b = self.beta(t).view(B, -1, 1, 1)
+        g = self.gamma(t)
+        b = self.beta(t)
 
-        return g * self.norm(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2) + b
+        if self.conv:
+            g = g.view(B, -1, 1, 1)
+            b = b.view(B, -1, 1, 1)
+        else:
+            g = g.view(B, 1, -1)
+            b = b.view(B, 1, -1)
+
+        return g * self.norm(x) + b
 
 
 class SinusoidalPosEmb(nn.Module):
@@ -52,8 +70,3 @@ class SwiGLU2d(nn.Module):
         return self.out(
             F.silu(self.gate_proj(x)) * self.hidden_proj(x)
         )
-
-
-class LayerNorm2d(nn.LayerNorm):
-    def forward(self, x):
-        return super().forward(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
