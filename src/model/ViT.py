@@ -70,20 +70,25 @@ class FiLMTransformerBlock(nn.Module):
         return x + self.ffn(self.ffn_norm(x, t))
 
 
-class FiLMTransformer(nn.Module):
-    def __init__(self, max_length, max_rel_pos, d_model, n_layers, n_heads):
-        super(FiLMTransformer, self).__init__()
+class FiLMViT(nn.Module):
+    def __init__(self, image_size, max_rel_pos, d_model, n_layers, n_heads):
+        super(FiLMViT, self).__init__()
 
         self.rel_pos_bias = nn.Parameter(
             torch.empty(1, n_heads, 2 * max_rel_pos - 1)
         )
         nn.init.xavier_normal_(self.rel_pos_bias.data)
 
+        rel_pos_coords = torch.stack(torch.meshgrid([
+            torch.arange(image_size), torch.arange(image_size)
+        ], indexing="ij")).flatten(1)
+        rel_pos_coords = (rel_pos_coords.unsqueeze(1) - rel_pos_coords.unsqueeze(2)).sum(0).clamp(
+            -max_rel_pos + 1, max_rel_pos - 1
+        )
         self.register_buffer(
             "rel_pos_coords",
-            (torch.arange(max_length).unsqueeze(0) - torch.arange(max_length).unsqueeze(1)).clamp(
-                -max_rel_pos + 1, max_rel_pos - 1
-            )
+            F.pad(rel_pos_coords, (1, 0, 1, 0), value=max_rel_pos),
+            persistent=False
         )
 
         self.t_model = nn.Sequential(
