@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import yaml
 
 from torch import nn
+from collections import namedtuple
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 from einops import rearrange
@@ -14,8 +15,9 @@ from .vae import VAEEncoder, VAEDecoder
 
 
 class FlowMatchModel(nn.Module, ABC):
-    def __init__(self, num_classes, sigma_min=1e-8, p_uncond=0.1):
+    def __init__(self, in_channels, num_classes, sigma_min=1e-8, p_uncond=0.1):
         super(FlowMatchModel, self).__init__()
+        self.in_channels = in_channels
         self.num_classes = num_classes
         self.sigma_min = sigma_min
         self.p_uncond = p_uncond
@@ -145,7 +147,7 @@ class UNetFlowMatchModel(FlowMatchModel):
             self, in_channels, num_classes, d_t=256, dims=None, depths=None,
             sigma_min=1e-8, p_uncond=0.1
     ):
-        super(UNetFlowMatchModel, self).__init__(num_classes, sigma_min, p_uncond)
+        super(UNetFlowMatchModel, self).__init__(in_channels, num_classes, sigma_min, p_uncond)
         self.in_channels = in_channels
 
         self.t_model = nn.Sequential(
@@ -170,7 +172,7 @@ class ViTFlowMatchModel(FlowMatchModel):
             patch_size=2, max_rel_pos=8, d_model=256, d_patch=None, n_layers=6, n_heads=8,
             p_uncond=0.1, sigma_min=1e-8
     ):
-        super(ViTFlowMatchModel, self).__init__(num_classes, sigma_min, p_uncond)
+        super(ViTFlowMatchModel, self).__init__(in_channels, num_classes, sigma_min, p_uncond)
         if d_patch is None:
             d_patch = d_model // 4
 
@@ -235,3 +237,12 @@ def load_from_args(args) -> FlowMatchModel:
         )
     else:
         raise NotImplementedError
+
+
+def load_from_config(config_path: str) -> FlowMatchModel:
+    with open(config_path) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    args = namedtuple("Args", config.keys())(*config.values())
+
+    return load_from_args(args)
