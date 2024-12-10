@@ -59,6 +59,9 @@ if __name__ == "__main__":
 
     subparsers = parser.add_subparsers(required=True, dest="arch")
 
+    config_parser = subparsers.add_parser("config")
+    config_parser.add_argument("config", type=str)
+
     unet_parser = subparsers.add_parser("unet")
     unet_parser.add_argument("--d_t", type=int, default=256)
     unet_parser.add_argument("--dims", type=List[int], default=[64, 128, 256])

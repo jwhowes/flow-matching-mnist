@@ -222,6 +222,8 @@ def load_from_args(args) -> FlowMatchModel:
             n_heads=args.n_heads,
             p_uncond=args.p_uncond
         )
+    elif args.arch == "config":
+        return load_from_config(args.config)
     else:
         raise NotImplementedError
 
