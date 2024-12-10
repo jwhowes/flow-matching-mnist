@@ -64,8 +64,8 @@ if __name__ == "__main__":
 
     unet_parser = subparsers.add_parser("unet")
     unet_parser.add_argument("--d_t", type=int, default=256)
-    unet_parser.add_argument("--dims", type=List[int], default=[64, 128, 256])
-    unet_parser.add_argument("--depths", type=List[int], default=[2, 2, 3])
+    unet_parser.add_argument("--dims", nargs="*", type=int, default=[64, 128, 256])
+    unet_parser.add_argument("--depths", nargs="*", type=int, default=[2, 2, 3])
 
     vit_parser = subparsers.add_parser("vit")
     vit_parser.add_argument("--patch_size", type=int, default=2)
