@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from einops import rearrange
 
 from .conv import ClassConditionalConvNeXtFiLMUnet
-from .ViT import FiLMViT
+from .ViT import FiLMTransformer
 from .util import SinusoidalPosEmb
 from .vae import VAEEncoder, VAEDecoder
 
@@ -169,7 +169,7 @@ class UNetFlowMatchModel(FlowMatchModel):
 class ViTFlowMatchModel(FlowMatchModel):
     def __init__(
             self, num_classes, in_channels, image_size,
-            patch_size=2, max_rel_pos=8, d_model=256, d_patch=None, n_layers=6, n_heads=8,
+            patch_size=2, d_model=256, d_patch=None, n_layers=6, n_heads=8,
             p_uncond=0.1, sigma_min=1e-8
     ):
         super(ViTFlowMatchModel, self).__init__(in_channels, num_classes, sigma_min, p_uncond)
@@ -178,8 +178,6 @@ class ViTFlowMatchModel(FlowMatchModel):
 
         self.patch_size = patch_size
 
-        max_rel_pos = min(max_rel_pos, image_size)
-
         self.label_emb = nn.Embedding(num_classes + 1, d_model)
 
         self.stem = nn.Sequential(
@@ -187,7 +185,7 @@ class ViTFlowMatchModel(FlowMatchModel):
             nn.Conv2d(d_patch, d_model, kernel_size=patch_size, stride=patch_size)
         )
 
-        self.transformer = FiLMViT(image_size, max_rel_pos, d_model, n_layers, n_heads)
+        self.transformer = FiLMTransformer((image_size // patch_size) ** 2 + 1, d_model, n_layers, n_heads)
 
         self.head = nn.Sequential(
             nn.ConvTranspose2d(d_model, d_patch, kernel_size=patch_size, stride=patch_size),
@@ -228,7 +226,6 @@ def load_from_args(args) -> FlowMatchModel:
             image_size=28,
             num_classes=10,
             patch_size=args.patch_size,
-            max_rel_pos=args.max_rel_pos,
             d_model=args.d_model,
             d_patch=args.d_patch,
             n_layers=args.n_layers,
