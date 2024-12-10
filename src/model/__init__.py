@@ -45,7 +45,7 @@ class FlowMatchModel(nn.Module, ABC):
             return self.pred_flow(x, t, label)
 
     @torch.inference_mode()
-    def sample(self, label, num_steps=50, guidance_scale=2.5, step="stochastic", image_size=28):
+    def sample(self, label, num_steps=50, guidance_scale=2.5, step="euler", image_size=28):
         B = label.shape[0]
         x = torch.randn(B, self.in_channels, image_size, image_size, device=label.device)
 
@@ -76,6 +76,10 @@ class FlowMatchModel(nn.Module, ABC):
                     x = x + 0.5 * (1 / num_steps) * (flow + flow2)
                 else:
                     x = x + (1 / num_steps) * flow
+            elif step == "midpoint":
+                t = t.view(-1, 1, 1, 1)
+                h = 1 / num_steps
+                x = x + h * self.guided_flow(x + 0.5 * h * flow, t + 0.5 * h, label, guidance_scale)
             else:
                 raise NotImplementedError
 

@@ -55,14 +55,8 @@ class ClassConditionalConvNeXtFiLMBlock(nn.Module):
 
 
 class ClassConditionalConvNeXtFiLMUnet(nn.Module):
-    def __init__(self, in_channels, num_classes, d_t, dims=None, depths=None):
+    def __init__(self, in_channels, num_classes, d_t, dims=(64, 128, 256), depths=(2, 2, 3)):
         super(ClassConditionalConvNeXtFiLMUnet, self).__init__()
-        if dims is None:
-            dims = [64, 128, 256]
-
-        if depths is None:
-            depths = [2, 2, 3]
-
         self.stem = nn.Conv2d(in_channels, dims[0], kernel_size=7, padding=3)
 
         self.down_blocks = nn.ModuleList()
