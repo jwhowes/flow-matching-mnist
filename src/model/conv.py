@@ -2,7 +2,7 @@ import torch
 
 from torch import nn
 
-from .util import FiLM, SwiGLU2d, LayerNorm2d
+from .util import FiLM, LayerNorm2d
 
 
 class ConvNeXtBlock(nn.Module):
@@ -13,7 +13,11 @@ class ConvNeXtBlock(nn.Module):
 
         self.dwconv = nn.Conv2d(d_model, d_model, kernel_size=7, padding=3, groups=d_model)
         self.norm = LayerNorm2d(d_model, eps=norm_eps)
-        self.ffn = SwiGLU2d(d_model, hidden_size)
+        self.ffn = nn.Sequential(
+            nn.Conv2d(d_model, hidden_size, kernel_size=1),
+            nn.GELU(),
+            nn.Conv2d(hidden_size, d_model, kernel_size=1)
+        )
 
     def forward(self, x):
         residual = x
@@ -31,7 +35,11 @@ class ConvNeXtFiLMBlock(nn.Module):
 
         self.dwconv = nn.Conv2d(d_model, d_model, kernel_size=7, padding=3, groups=d_model)
         self.norm = FiLM(d_model, d_t, eps=norm_eps)
-        self.ffn = SwiGLU2d(d_model, hidden_size)
+        self.ffn = nn.Sequential(
+            nn.Conv2d(d_model, hidden_size, kernel_size=1),
+            nn.GELU(),
+            nn.Conv2d(hidden_size, d_model, kernel_size=1)
+        )
 
     def forward(self, x, t):
         residual = x
@@ -88,8 +96,7 @@ class ClassConditionalConvNeXtFiLMUnet(nn.Module):
             ))
             self.up_combines.append(nn.Conv2d(
                 2 * dims[i], dims[i],
-                kernel_size=5,
-                padding=2
+                kernel_size=1
             ))
 
             blocks = nn.ModuleList()

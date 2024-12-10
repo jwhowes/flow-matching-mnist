@@ -56,17 +56,3 @@ class SinusoidalPosEmb(nn.Module):
             x.cos(),
             x.sin()
         ), dim=-1).view(-1, self.d_model)
-
-
-class SwiGLU2d(nn.Module):
-    def __init__(self, d_model, d_hidden=None):
-        super(SwiGLU2d, self).__init__()
-
-        self.gate_proj = nn.Conv2d(d_model, d_hidden, kernel_size=1, bias=False)
-        self.hidden_proj = nn.Conv2d(d_model, d_hidden, kernel_size=1, bias=False)
-        self.out = nn.Conv2d(d_hidden, d_model, kernel_size=1)
-
-    def forward(self, x):
-        return self.out(
-            F.silu(self.gate_proj(x)) * self.hidden_proj(x)
-        )
