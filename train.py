@@ -15,11 +15,12 @@ from src.data import MNISTDataset
 def train(
         model: FlowMatchModel,
         dataloader: DataLoader,
-        exp_dir: str
+        exp_dir: str,
+        lr: float = 5e-5
 ) -> None:
     num_epochs = 5
 
-    opt = torch.optim.Adam(model.parameters(), lr=5e-5)
+    opt = torch.optim.Adam(model.parameters(), lr=lr)
     lr_scheduler = get_cosine_schedule_with_warmup(
         opt,
         num_warmup_steps=0,
@@ -56,6 +57,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("exp_name", type=str)
     parser.add_argument("--p_uncond", type=float, default=0.1)
+    parser.add_argument("--lr", type=float, default=5e-5)
 
     subparsers = parser.add_subparsers(required=True, dest="arch")
 
@@ -93,4 +95,4 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    train(model, dataloader, exp_dir)
+    train(model, dataloader, exp_dir, args.lr)
