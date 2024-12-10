@@ -90,9 +90,9 @@ class FlowMatchModel(nn.Module, ABC):
         t = t.view(-1, 1, 1, 1)
 
         x_0 = torch.randn_like(x)
-        psi_t = (1 - self.sigma_offset * t) * x_0 + t * x
+        x_t = (1 - self.sigma_offset * t) * x_0 + t * x
 
-        pred = self.pred_flow(psi_t, t, label)
+        pred = self.pred_flow(x_t, t, label)
 
         return F.mse_loss(pred, x - self.sigma_offset * x_0)
 
