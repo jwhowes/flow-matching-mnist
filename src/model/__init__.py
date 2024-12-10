@@ -169,28 +169,19 @@ class UNetFlowMatchModel(FlowMatchModel):
 class ViTFlowMatchModel(FlowMatchModel):
     def __init__(
             self, num_classes, in_channels, image_size,
-            patch_size=2, d_model=256, d_patch=None, n_layers=6, n_heads=8,
+            patch_size=2, d_model=256, n_layers=6, n_heads=8,
             p_uncond=0.1, sigma_min=1e-8
     ):
         super(ViTFlowMatchModel, self).__init__(in_channels, num_classes, sigma_min, p_uncond)
-        if d_patch is None:
-            d_patch = d_model // 4
-
         self.patch_size = patch_size
 
         self.label_emb = nn.Embedding(num_classes + 1, d_model)
 
-        self.stem = nn.Sequential(
-            nn.Conv2d(in_channels, d_patch, kernel_size=3, padding=1),
-            nn.Conv2d(d_patch, d_model, kernel_size=patch_size, stride=patch_size)
-        )
+        self.stem = nn.Conv2d(in_channels, d_model, kernel_size=patch_size, stride=patch_size)
 
         self.transformer = FiLMTransformer((image_size // patch_size) ** 2 + 1, d_model, n_layers, n_heads)
 
-        self.head = nn.Sequential(
-            nn.ConvTranspose2d(d_model, d_patch, kernel_size=patch_size, stride=patch_size),
-            nn.Conv2d(d_patch, in_channels, kernel_size=3, padding=1)
-        )
+        self.head = nn.ConvTranspose2d(d_model, in_channels, kernel_size=patch_size, stride=patch_size)
 
     def pred_flow(self, x, t, label):
         B, _, H, W = x.shape
@@ -227,7 +218,6 @@ def load_from_args(args) -> FlowMatchModel:
             num_classes=10,
             patch_size=args.patch_size,
             d_model=args.d_model,
-            d_patch=args.d_patch,
             n_layers=args.n_layers,
             n_heads=args.n_heads,
             p_uncond=args.p_uncond

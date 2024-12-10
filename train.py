@@ -6,7 +6,7 @@ from accelerate import Accelerator
 from torch.utils.data import DataLoader
 from transformers import get_cosine_schedule_with_warmup
 from argparse import ArgumentParser
-from typing import List, Optional
+from typing import List
 
 from src.model import load_from_args, FlowMatchModel
 from src.data import MNISTDataset
@@ -68,7 +68,6 @@ if __name__ == "__main__":
     vit_parser.add_argument("--patch_size", type=int, default=2)
     vit_parser.add_argument("--max_rel_pos", type=int, default=8)
     vit_parser.add_argument("--d_model", type=int, default=256)
-    vit_parser.add_argument("--d_patch", type=Optional[int], default=None)
     vit_parser.add_argument("--n_layers", type=int, default=6)
     vit_parser.add_argument("--n_heads", type=int, default=8)
 
