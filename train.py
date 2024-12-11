@@ -6,7 +6,6 @@ from accelerate import Accelerator
 from torch.utils.data import DataLoader
 from transformers import get_cosine_schedule_with_warmup
 from argparse import ArgumentParser
-from typing import List
 
 from src.model import load_from_args, FlowMatchModel
 from src.data import MNISTDataset
