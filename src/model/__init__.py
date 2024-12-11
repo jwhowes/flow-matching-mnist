@@ -104,8 +104,6 @@ class UNetFlowMatchModel(FlowMatchModel):
             sigma_min=1e-8, p_uncond=0.1
     ):
         super(UNetFlowMatchModel, self).__init__(in_channels, num_classes, sigma_min, p_uncond)
-        self.in_channels = in_channels
-
         self.t_model = nn.Sequential(
             SinusoidalPosEmb(d_t),
             nn.Linear(d_t, 4 * d_t),
