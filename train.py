@@ -68,12 +68,6 @@ if __name__ == "__main__":
     unet_parser.add_argument("--dims", nargs="*", type=int, default=[64, 128, 256])
     unet_parser.add_argument("--depths", nargs="*", type=int, default=[2, 2, 3])
 
-    vit_parser = subparsers.add_parser("vit")
-    vit_parser.add_argument("--patch_size", type=int, default=2)
-    vit_parser.add_argument("--d_model", type=int, default=256)
-    vit_parser.add_argument("--n_layers", type=int, default=6)
-    vit_parser.add_argument("--n_heads", type=int, default=8)
-
     args = parser.parse_args()
 
     exp_dir = os.path.join("experiments/", args.exp_name)

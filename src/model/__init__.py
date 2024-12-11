@@ -6,12 +6,9 @@ from torch import nn
 from collections import namedtuple
 from tqdm import tqdm
 from abc import ABC, abstractmethod
-from einops import rearrange
 
-from .conv import ClassConditionalConvNeXtFiLMUnet
-from .ViT import FiLMTransformer
+from .ConvNeXt import ClassConditionalConvNeXtFiLMUnet
 from .util import SinusoidalPosEmb
-from .vae import VAEEncoder, VAEDecoder
 
 
 class FlowMatchModel(nn.Module, ABC):
@@ -170,41 +167,6 @@ class UNetFlowMatchModel(FlowMatchModel):
         return self.unet(x, t_emb, label)
 
 
-class ViTFlowMatchModel(FlowMatchModel):
-    def __init__(
-            self, num_classes, in_channels, image_size,
-            patch_size=2, d_model=256, n_layers=6, n_heads=8,
-            p_uncond=0.1, sigma_min=1e-8
-    ):
-        super(ViTFlowMatchModel, self).__init__(in_channels, num_classes, sigma_min, p_uncond)
-        self.patch_size = patch_size
-
-        self.label_emb = nn.Embedding(num_classes + 1, d_model)
-
-        self.stem = nn.Conv2d(in_channels, d_model, kernel_size=patch_size, stride=patch_size)
-
-        self.transformer = FiLMTransformer((image_size // patch_size) ** 2 + 1, d_model, n_layers, n_heads)
-
-        self.head = nn.ConvTranspose2d(d_model, in_channels, kernel_size=patch_size, stride=patch_size)
-
-    def pred_flow(self, x, t, label):
-        B, _, H, W = x.shape
-        H = H // self.patch_size
-        W = W // self.patch_size
-
-        x = rearrange(self.stem(x), "b c h w -> b (h w) c")
-        x = self.transformer(
-            torch.concatenate((
-                self.label_emb(label).unsqueeze(1),
-                x
-            ), dim=1), t
-        )
-
-        return self.head(
-            rearrange(x[:, 1:], "b (h w) c -> b c h w", h=H, w=W)
-        )
-
-
 def load_from_args(args) -> FlowMatchModel:
     if args.arch == "unet":
         return UNetFlowMatchModel(
@@ -213,17 +175,6 @@ def load_from_args(args) -> FlowMatchModel:
             d_t=args.d_t,
             dims=args.dims,
             depths=args.depths,
-            p_uncond=args.p_uncond
-        )
-    elif args.arch == "vit":
-        return ViTFlowMatchModel(
-            in_channels=1,
-            image_size=28,
-            num_classes=10,
-            patch_size=args.patch_size,
-            d_model=args.d_model,
-            n_layers=args.n_layers,
-            n_heads=args.n_heads,
             p_uncond=args.p_uncond
         )
     elif args.arch == "config":
