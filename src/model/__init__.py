@@ -98,51 +98,6 @@ class FlowMatchModel(nn.Module, ABC):
         return F.mse_loss(pred, x - self.sigma_offset * x_0)
 
 
-class LatentFlowMatchWrapper(nn.Module):
-    def __init__(
-            self,
-            encoder: VAEEncoder,
-            decoder: VAEDecoder,
-            model: FlowMatchModel,
-            latent_scale: float = 1.0,
-            sample: bool = False
-    ):
-        super(LatentFlowMatchWrapper, self).__init__()
-        self.latent_scale = latent_scale
-        self.sample = sample
-
-        self.encoder = encoder
-        self.encoder.eval()
-        self.encoder.requires_grad_(False)
-
-        self.decoder = decoder
-        self.decoder.eval()
-        self.decoder.requires_grad_(False)
-
-        self.model = model
-
-    def train(self, *args, **kwargs):
-        self.model.train(*args, **kwargs)
-
-    @torch.inference_mode()
-    def sample(self, *args, **kwargs):
-        z = self.model.sample(*args, **kwargs) / self.latent_scale
-
-        return self.decoder(z)
-
-    def forward(self, x, label):
-        dist = self.encoder(x)
-
-        if self.sample:
-            z = dist.sample()
-        else:
-            z = dist.mean
-
-        z = z * self.latent_scale
-
-        return self.model(x, label)
-
-
 class UNetFlowMatchModel(FlowMatchModel):
     def __init__(
             self, in_channels, num_classes, d_t=256, dims=None, depths=None,
